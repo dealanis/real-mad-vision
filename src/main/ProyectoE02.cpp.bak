@@ -1,0 +1,346 @@
+/*
+ * Title: Etapa 01
+ * Class: Vision para Robot
+ * Instructor: Dr. Jose Luis Gordillo (http://robvis.mty.itesm.mx/~gordillo/)
+ * Code: 
+ * Institution: Tec de Monterrey, Campus Monterrey
+ * Date: 12 February 2013
+ * Team Members: Joel Nieto, Juan Pablo Calleja, 
+ *               David de Leon, Daniel Alanis
+ *
+ * Description: Demonstration of first phase of the project.
+ * This programs uses OpenCV http://www.opencv.org/
+ */
+
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+#include <stdlib.h> 
+#include <stdio.h>
+#include <time.h> 
+#include "CHeli.h"
+
+#define XIMAGE 0
+#define YIMAGE 20
+#define XVIDEO 1250
+#define XYIQ 0
+#define YYIQ 570
+#define XHSV 950
+#define YHSV 570
+
+#define RGB 0
+#define YIQ 1
+#define HSV 2
+
+using namespace cv;
+using namespace std;
+
+// Here we will store points
+vector<Point> points;
+Point orig, dest;
+
+
+/* Create images where captured and transformed frames are going to be stored */
+Mat currentImage;
+Mat storedImage, backupImage;
+Mat blackAndWhiteImage;
+Mat binaryImage;
+Mat grayScaleImage;
+Mat HSVImage;
+Mat segmImage;
+
+//for parrot use
+CHeli *heli;
+CRawImage *image;
+
+//other globals
+bool greyScalePointReady;
+Point greyScalePoint;
+
+void mouseCoordinatesExampleCallback(int event, int x, int y, int flags, void* param);
+void mouseCallbackForBinaryImage(int event, int x, int y, int flags, void* param);
+void generateBlackWhite(const Mat &origin, const char* window, Mat &destination);
+void generateBinary(const Mat &origin, const unsigned char limit, const char* window, Mat &destination); //limit va de 0 a 255
+void generateGrayScale(Mat &Matrix);
+//void generateHSV(const Mat &origin, Mat &destination);
+void rawToMat( Mat &destImage, CRawImage* sourceImage);
+void oilDroplet(Mat &origin, Mat &destination);
+
+int main(int argc, char *argv[])
+{
+    srand(time(NULL));
+
+	/* First, open camera device */
+    // Abre webcam
+    	
+    VideoCapture camera;
+    camera.open(0);
+    camera.set(CV_CAP_PROP_FRAME_WIDTH, 320);
+    camera.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
+    
+
+    /* Open parrot camera instead */
+    
+    //establishing connection with the quadcopter
+    //heli = new CHeli();
+    
+    //this class holds the image from the drone 
+    //image = new CRawImage(320,240);
+    
+
+    //init currentImage
+    Mat currentImage = Mat(240, 320, CV_8UC3);
+
+    /* Create main OpenCV window to attach callbacks */
+    namedWindow("Video");
+    cvMoveWindow("Video", XVIDEO, YIMAGE);
+
+    unsigned char key = 0;
+
+    generateGrayScale(grayScaleImage);
+    namedWindow("Grey Scale");
+    cvMoveWindow("Grey Scale",XIMAGE+400,YIMAGE+480);
+    imshow("Grey Scale", grayScaleImage);
+    setMouseCallback("Grey Scale", mouseCallbackForBinaryImage);
+
+    //initialization
+    greyScalePoint.x = 128; //catches a 0.5 level in grey scale
+    greyScalePoint.y = 0;
+    greyScalePointReady = true;
+    orig.x = dest.x = 0;
+
+    while (key != 27)
+	{
+        /* Obtain a new frame from camera web */
+		camera >> currentImage;
+
+        /* Obtain image from Parrot instead */
+        //image is captured
+        //heli->renewImage(image);
+        // Copy to OpenCV Mat
+        //rawToMat(currentImage, image);
+        
+
+		if (currentImage.data) 
+		{
+            /* Show image */
+            imshow("Video", currentImage);
+            
+		}
+		else
+		{
+			cout << "No image data.. " << endl;
+		}
+
+        if (key == 'c') { //capture snapshot
+            storedImage.release();
+            points.clear(); //remove all stored points on the vector
+            storedImage = currentImage.clone();
+            backupImage = currentImage.clone();
+            namedWindow("Image");
+            cvMoveWindow("Image", XIMAGE, YIMAGE);
+            setMouseCallback("Image", mouseCoordinatesExampleCallback);
+            imshow("Image", storedImage);
+        }
+
+        /***********************************
+            Generate all processing
+        ************************************/
+        
+        if (key == 10 && storedImage.rows > 0) { //executes on enter
+            generateBlackWhite(storedImage, "B&W", blackAndWhiteImage);
+            greyScalePointReady = true;  
+
+            //DESPLEGAR el HSV
+            /*
+            generateHSV(storedImage,HSVImage);
+                // or:
+                //cvtColor(storedImage,HSVImage,  CV_RGB2HSV , 0);
+
+            namedWindow("HSV");
+            cvMoveWindow("HSV", XHSV, YHSV);
+            imshow("HSV", HSVImage); 
+            */
+
+            //Gaussian Filter
+            Mat GaussianImage;
+            GaussianBlur(blackAndWhiteImage, GaussianImage, Size(5,5), 0, 0);
+            namedWindow("Gaussian");
+            cvMoveWindow("Gaussian", XIMAGE+200, YIMAGE+200);
+            imshow("Gaussian", GaussianImage);
+
+            //Smooth / Blur Filter
+            
+            Mat SmoothImage;
+            blur(blackAndWhiteImage, SmoothImage, Size(5,5), Point(-1,-1));
+            namedWindow("Smooth");
+            cvMoveWindow("Smooth", XIMAGE+200, YIMAGE+400);
+            imshow("Smooth", SmoothImage);
+            
+
+            //Laplacian Filter
+            Mat LaplacianImage;
+            Laplacian(blackAndWhiteImage, LaplacianImage, CV_64F, 5, 1, 0, 0);
+            namedWindow("Laplacian");
+            cvMoveWindow("Laplacian", XIMAGE+200, YIMAGE+600);
+            imshow("Laplacian", LaplacianImage);
+        }
+
+        if (greyScalePointReady && blackAndWhiteImage.data) 
+        {   //executes on click on greyscale window
+            //in grayScaleImage all channels are equal, pick only one channel
+            unsigned char value = grayScaleImage.at<Vec3b>(greyScalePoint.y, greyScalePoint.x)[0];
+            cout << "Gray Scale value: " << (int)value << endl;
+            generateBinary(blackAndWhiteImage, value, "Binary", binaryImage);
+            oilDroplet(binaryImage, segmImage);
+            greyScalePointReady = false;
+        }
+
+        /*************************************/
+        key = waitKey(5);
+	}
+} //main
+
+void mouseCoordinatesExampleCallback(int event, int x, int y, int flags, void* param)
+{
+
+    switch (event)
+    {
+        case CV_EVENT_LBUTTONDOWN:
+            cout << "  Mouse X, Y: " << x << ", " << y << 
+                " color: R " << (int)storedImage.at<Vec3b>(y, x)[2] <<
+                " G " << (int)storedImage.at<Vec3b>(y, x)[1] <<
+                " B " << (int)storedImage.at<Vec3b>(y, x)[0];
+            cout << endl;
+
+            break;
+
+        case CV_EVENT_MOUSEMOVE:
+            
+            break;
+        case CV_EVENT_LBUTTONUP:
+            
+            break;
+    }
+} //mouseCoordinatesExampleCallback
+
+void mouseCallbackForBinaryImage(int event, int x, int y, int flags, void* param) 
+{
+    switch (event)
+    {
+        case CV_EVENT_LBUTTONDOWN:
+            greyScalePoint.x = x;
+            greyScalePoint.y = y;
+            greyScalePointReady = true;
+            break;
+        default:
+            break;
+    }
+} //mouseCallbackForBinaryImage
+
+void generateBlackWhite(const Mat &origin, const char* window, Mat &destination) 
+{
+    int average;
+
+    if (destination.empty())
+        destination = Mat(origin.rows, origin.cols, CV_8UC1);
+
+    int channels = origin.channels();
+    
+    for (int y = 0; y < origin.rows; ++y) 
+    {
+        uchar* sourceRowPointer = (uchar*) origin.ptr<uchar>(y);
+        uchar* destinationRowPointer = (uchar*) destination.ptr<uchar>(y);
+        for (int x = 0; x < origin.cols; ++x) {
+            average = ( sourceRowPointer[x * channels] + sourceRowPointer[x * channels + 1] + sourceRowPointer[x * channels + 2] ) / 3;
+            destinationRowPointer[x] = (unsigned char)average;
+        }
+    }
+
+    namedWindow(window);
+    cvMoveWindow(window,XIMAGE +200,YIMAGE);
+    imshow(window, destination);
+} //generateBlackWhite
+
+void generateBinary(const Mat &origin, const unsigned char limit, const char* window, Mat &destination) 
+{
+    if (destination.empty())
+        destination = Mat(origin.rows, origin.cols, CV_8UC1);
+
+    int channels = origin.channels();
+    
+    for (int y = 0; y < origin.rows; ++y) 
+    {
+        uchar* sourceRowPointer = (uchar*) origin.ptr<uchar>(y);
+        uchar* destinationRowPointer = (uchar*) destination.ptr<uchar>(y);
+        for (int x = 0; x < origin.cols; ++x) {
+            for (int i = 0; i < channels; ++i) {
+                if (sourceRowPointer[x * channels + i] < limit )
+                    destinationRowPointer[x * channels + i] = 0;
+                else
+                    destinationRowPointer[x * channels + i] = 255;
+            }
+        }
+    }
+
+    namedWindow(window);
+    cvMoveWindow(window,XIMAGE +400,YIMAGE);
+    imshow(window, destination);
+} //generateBinary
+
+void generateGrayScale(Mat &Matrix) 
+{
+    Matrix.create(25,255,CV_8UC3);
+
+    int channels = Matrix.channels();
+    
+    for (int y = 0; y < Matrix.rows; ++y) 
+    {
+        uchar* rowPointer = (uchar*) Matrix.ptr<uchar>(y);
+        for (int x = 0; x < Matrix.cols; ++x)
+            for (int i = 0; i < channels; ++i)
+            {
+                rowPointer[x * channels + i] = x;
+            }
+    }
+} //generateGrayScale
+
+// Convert CRawImage to Mat *for parrot use*
+void rawToMat( Mat &destImage, CRawImage* sourceImage)
+{   
+    uchar *pointerImage = destImage.ptr(0);
+    
+    for (int i = 0; i < 240*320; i++)
+    {
+        pointerImage[3*i] = sourceImage->data[3*i+2];
+        pointerImage[3*i+1] = sourceImage->data[3*i+1];
+        pointerImage[3*i+2] = sourceImage->data[3*i];
+    }
+} //rawToMat
+
+void oilDroplet(Mat &origin, Mat &destination)
+{
+    Point3_<uchar>* seed;
+    if (destination.empty()) 
+    {
+        destination = Mat(origin.rows, origin.cols, CV_8UC3);
+        destination = Scalar(255,0,0);
+    }
+    int x, y;
+    do{
+        x = rand() % 240 + 1;
+        y = rand() % 320 + 1;
+
+        cout << x << " " << y << " " << (int)origin.at<uchar>(y,x) << " ";
+    } while((int)origin.at<uchar>(y,x) != 255);
+
+    destination.at<Vec3b>(y,x)[0] = 0;
+    destination.at<Vec3b>(y,x)[1] = 255;
+    destination.at<Vec3b>(y,x)[2] = 0;
+
+    cout << "x = " << x << ", Y= " << y;
+
+    namedWindow("OilDroplet");
+    imshow("OilDroplet", destination);
+}

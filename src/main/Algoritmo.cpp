@@ -44,11 +44,9 @@ Point orig, dest;
 /* Create images where captured and transformed frames are going to be stored */
 Mat currentImage;
 Mat storedImage, backupImage;
-Mat filteredImage;
 Mat blackAndWhiteImage;
 Mat binaryImage;
 Mat grayScaleImage;
-Mat YIQImage;
 Mat HSVImage;
 Mat closing;
 //for parrot use
@@ -83,17 +81,9 @@ void generateBlackWhite1C(const Mat &origin, Mat &destination) ; //Hace la image
 void generateBinary(const Mat &origin, const unsigned char limit, Mat &destination); //limit va de 0 a 255
 void generateGrayScale(Mat &Matrix);
 void rawToMat( Mat &destImage, CRawImage* sourceImage);
-void showHistogram(Mat& img, const char* wname, const int sourceX, const int sourceY);
-void showHistogram(Mat& img, const char* wname, const int sourceX, const int sourceY, const Vec3b components);
-
 Vec3b getK(int &x);
 
 void OilDrop(const Mat &dst, Mat &colorDst);
-
-void generaimagenFiltradaBinaria (const Mat &origin, Mat &destination,int type);
-void generateYIQ(const Mat &origin, Mat &destination);
-void generateHSV(const Mat &origin, Mat &destination);
-
 
 int main(int argc, char *argv[])
 {
@@ -113,8 +103,8 @@ int main(int argc, char *argv[])
     //  image = new CRawImage(320,240);
     
 
-  // init currentImage
-    //Mat currentImage = Mat(240, 320, CV_8UC3);
+    //init currentImage
+   //Mat currentImage = Mat(240, 320, CV_8UC3);
 
 
 
@@ -139,7 +129,7 @@ assert((start = clock())!=-1);
 
         /* 2 Obtain image from Parrot instead */
         //image is captured
-     //  heli->renewImage(image);
+      //  heli->renewImage(image);
         // Copy to OpenCV Mat
      // rawToMat(currentImage, image);
         
@@ -190,7 +180,9 @@ assert((start = clock())!=-1);
             greyScalePoint.y = 0;
             greyScalePointReady = true;
             orig.x = dest.x = 0;
-            }
+                   
+
+        }
                
 
         if (greyScalePointReady && blackAndWhiteImage.data) 
@@ -210,53 +202,9 @@ assert((start = clock())!=-1);
 
         }
         
-        if(key == 'r' && storedImage.data)
-        {
-            imshow("Image",backupImage);
-            storedImage = backupImage;
-        }
-
-        if(key == 'h' && storedImage.data && (orig.x != dest.x))
-        {
-            Mat dilateFilter; //Declarar la variable aqui para que tambien se pueda usar la funcion del enter
-
-            generaimagenFiltradaBinaria(storedImage, filteredImage,HSV);
-            dilate(filteredImage, dilateFilter, Mat (10, 10, CV_8U));
-            erode(dilateFilter, closing, Mat (10, 10, CV_8U));
-            imshow("Image", closing);   
-
-        /* NOTA: PROBAR CON FILTROS DE PASO BAJO SI MEJORA EL FILTRADO
-
-            //medianBlur
-            Mat medianBlurImage;
-            medianBlur(storedImage, medianBlurImage, 5);
-            generaimagenFiltradaBinaria(medianBlurImage, filteredImage,HSV);
-            dilate(filteredImage, dilateFilter, Mat (10, 10, CV_8U));
-            erode(dilateFilter, closing, Mat (10, 10, CV_8U));
-            imshow("Filtrado mediana", closing);   
-
-            //AverageBlur
-            Mat AverageBlurImage;
-            blur(storedImage, AverageBlurImage, Size(5,5), Point(-1,-1));
-            generaimagenFiltradaBinaria(AverageBlurImage, filteredImage,HSV);
-            dilate(filteredImage, dilateFilter, Mat (10, 10, CV_8U));
-            erode(dilateFilter, closing, Mat (10, 10, CV_8U));
-            imshow("Filtrado average", closing);
-
-            // GaussianBlur
-            Mat GaussianImage;
-            GaussianBlur(storedImage, GaussianImage, Size(5,5), 0, 0);
-            generaimagenFiltradaBinaria(GaussianImage, filteredImage,HSV);
-            dilate(filteredImage, dilateFilter, Mat (10, 10, CV_8U));
-            erode(dilateFilter, closing, Mat (10, 10, CV_8U));
-            imshow("Filtrado Gaussian", closing);   
-        */
-
-        }
-
-
         if (key=='s' && closing.rows > 0)
         {
+
         Mat oil;
         OilDrop(closing, oil);
         imshow("oildrop", oil);
@@ -270,8 +218,6 @@ assert((start = clock())!=-1);
 
 void mouseCoordinatesExampleCallback(int event, int x, int y, int flags, void* param)
 {
-    static bool clicked=false;
-    static char wname[5] = {'B', 0, 'G', 0, 'R'};
 
     switch (event)
     {
@@ -282,34 +228,16 @@ void mouseCoordinatesExampleCallback(int event, int x, int y, int flags, void* p
                 " B " << (int)storedImage.at<Vec3b>(y, x)[0];
             cout << endl;
 
-            clicked=true;
-            orig = Point(x,y);
-            /*  Draw a point */
-            points.push_back(Point(x, y));
-
-            imshow("Image", storedImage);
-         //   showHistogram(storedImage, wname, XIMAGE, YIMAGE, storedImage.at<Vec3b>(y, x));
-
             break;
 
         case CV_EVENT_MOUSEMOVE:
-            if (clicked)
-                {
-                    Mat tmpImage;
-                    tmpImage=storedImage.clone();
-                    dest = Point(x,y);
-                    {
-                        rectangle(tmpImage, orig, dest,Scalar( 0, 255, 0));
-                         imshow("Image", tmpImage);
-                    }
-                }
+            
             break;
         case CV_EVENT_LBUTTONUP:
             
-            clicked=false;
             break;
     }
-}//mouseCoordinatesExampleCallback
+} //mouseCoordinatesExampleCallback
 
 void mouseCallbackForBinaryImage(int event, int x, int y, int flags, void* param) 
 {
@@ -389,6 +317,8 @@ void generateBinary(const Mat &origin, const unsigned char limit, Mat &destinati
             }
         }
     }
+
+
 } //generateBinary
 
 
@@ -432,27 +362,21 @@ Vec3b getK(int &x) {
     return vector;
 }
 
+
 //Imagen binaria, Imagen destino
 void OilDrop(const Mat &dst, Mat &colorDst) {
     Vec3b k;
     uchar aux;
-    int colorIndex=0;
+    int x=0;
     Vec3b negro=Vec3b(0, 0, 0); //Use to compare with black color
     
     int state=1;  //Variable for state machine for exploring
-    int factor; // Variable to explore in spiral
-    int delta;
+    int factor=1; // Variable to explore in spiral
 
-    #define maxAreas 10
-    int m00[maxAreas]; //Variable to get the size of the blobs
-    long m10[maxAreas];
-    long m01[maxAreas];
-    long m20[maxAreas];
-    long m02[maxAreas];
-    long m11[maxAreas];
+    int areas[10]; //Variable to get the size of the blobs
 
     if (colorDst.empty())
-        colorDst = Mat(dst.rows, dst.cols,  CV_8UC3);
+    colorDst = Mat(dst.rows, dst.cols,  CV_8UC3);
     colorDst=Scalar::all(0);  //Start with the empty image
     
     for (int nareas = 0; nareas < 8; nareas++) { //color 5 areas max
@@ -461,34 +385,32 @@ void OilDrop(const Mat &dst, Mat &colorDst) {
         Point seed = Point(seedCol, seedRow);   //first seed, on the middle of the image
 
         int c = 30;
-        factor = dst.cols / 20;
-        delta = factor;
 
         do {
 
             switch(state)
             {   
                 case 1:
-                seedRow += delta;  //move right
-                delta += factor;   //increase delta
+                seedRow += factor;  //move right
+                factor *= 2;        //increase factor
                 state = 2;
                 break;
                 
                 case 2:
-                seedCol -= delta;  //move up
-                delta += factor;   //increase delta
+                seedCol -= factor;  //move up
+                factor *= 2;        //increase factor
                 state = 3;
                 break;
                 
                 case 3:
-                seedRow -= delta;  //move left
-                delta += factor;   //increase delta
+                seedRow -= factor;  //move left
+                factor *= 2;        //increase factor
                 state = 4;
                 break;
                 
                 case 4:
-                seedCol += delta;  //move down
-                delta += factor;   //increase delta
+                seedCol += factor;  //move down
+                factor *= 2;        //increase factor
                 state = 1;
                 break;
                 
@@ -518,19 +440,12 @@ void OilDrop(const Mat &dst, Mat &colorDst) {
 
         if (c > 0) {
         
-            k = getK(colorIndex);
+            k = getK(x);
+            areas[x-1]=1;
             queue<Point> Fifo;
             Fifo.push(seed);
 
             colorDst.at<Vec3b>(seed) = k;   // color the seed pixel
-            m00[colorIndex-1] = 1;
-            m10[colorIndex-1] = seed.x;
-            m01[colorIndex-1] = seed.y;
-            m20[colorIndex-1] = seed.x * seed.x;
-            m02[colorIndex-1] = seed.y * seed.y;
-            m11[colorIndex-1] = seed.x * seed.y;
-
-
             Point coord;
             
             while (!Fifo.empty()) {
@@ -561,12 +476,7 @@ void OilDrop(const Mat &dst, Mat &colorDst) {
                             if (dst.at<uchar>(coord) != 0) {        //AND is not 0 in the binary image
                                 colorDst.at<Vec3b>(coord) = k;      //color the destination
                                 Fifo.push(Point(coord));            //enqueue this point for analysis
-                                m00[colorIndex-1] += 1;
-                                m10[colorIndex-1] += coord.x;
-                                m01[colorIndex-1] += coord.y;
-                                m20[colorIndex-1] += coord.x * coord.x;
-                                m02[colorIndex-1] += coord.y * coord.y;
-                                m11[colorIndex-1] += coord.x * coord.y;
+                                areas[x-1]++;
                             }
                         }
                     }
@@ -577,373 +487,7 @@ void OilDrop(const Mat &dst, Mat &colorDst) {
 
         }
     }
-    
-    for (int i=0;i<colorIndex;i++) {
-        cout<<"Region"<< i+1 << "\tValor:"<<endl;
-        cout << "m00" << "\t" << m00[i] << endl;
-        cout << "m10" << "\t" << m10[i] << endl;
-        cout << "m01" << "\t" << m01[i] << endl;
-        cout << "m20" << "\t" << m20[i] << endl;
-        cout << "m02" << "\t" << m02[i] << endl;
-        cout << "m11" << "\t" << m11[i] << endl;
-        cout << endl;
-    }
-} //End Oil Drop
-
-void generaimagenFiltradaBinaria (const Mat &sourceImage, Mat &destinationImage, int type)
-{
-    Vec3b maxVec, minVec;
-    bool gray;
-    int tolerance, maxValue, minValue;
-
-    int startY, endY, startX, endX;
-
-    int channels = sourceImage.channels();
-    
-
-
-    //transformar a YIQ o HSV si es necesario
-    Mat transformedImage;
-    switch(type)
-    {
-                    
-        case YIQ:
-                    transformedImage = YIQImage;
-                    generateYIQ(sourceImage,transformedImage);
-                    break;
-                
-        case HSV:
-                    transformedImage = HSVImage;
-                    generateHSV (sourceImage,transformedImage);
-                    break;
-        default:
-                    transformedImage=sourceImage;
-    }
-
-    maxValue = 255;
-    minValue = 0;
-    tolerance = 3;
-    
-    minVec = transformedImage.at<Vec3b>(orig.y, orig.x);
-    maxVec = minVec;
-
-    if(dest.y >= orig.y)
-    {
-        startY = orig.y;
-        endY = dest.y;
-    }
-    else
-    {
-        startY = dest.y;
-        endY = orig.y;
-    }
-
-    if(dest.x >= orig.x)
-    {
-        startX = orig.x;
-        endX = dest.x;
-    }
-    else
-    {
-        startX = dest.x;
-        endX = orig.x;
-    }
-
-    for (int y = startY; y <= endY; y++) 
-    {
-        uchar* rowPointer = (uchar*) transformedImage.ptr<uchar>(y);
-
-        for (int x = startX; x <= endX; x++)
-            for (int i = 0; i < channels; ++i)
-            {
-                if(rowPointer[x * channels + i] > maxVec[i])
-                {
-                    maxVec[i] = rowPointer[x * channels + i];
-                }
-
-                if(rowPointer[x * channels + i] < minVec[i])
-                {
-                    minVec[i] = rowPointer[x * channels + i];
-                }
-            }
-    }
-    
-   for (int i = 0; i < channels; ++i)
-    {
-
-        if ((minVec[i] - tolerance) < minValue)
-            minVec[i] = minValue;
-        else
-            minVec[i] -= tolerance;
-        
-        if ((maxVec[i] + tolerance) > maxValue)
-            maxVec[i] = maxValue;
-        else
-            maxVec[i] += tolerance;
-    }
-
-
-    if (destinationImage.empty())
-        destinationImage = Mat(transformedImage.rows, transformedImage.cols, CV_8UC1);
-    
-    for (int y = 0; y < sourceImage.rows; ++y) 
-    {   
-      //  uchar* sourceRowPointer = (uchar*) sourceImage.ptr<uchar>(y);
-        uchar* transformedRowPointer = (uchar*) transformedImage.ptr<uchar>(y);
-        uchar* destinationRowPointer = (uchar*) destinationImage.ptr<uchar>(y);
-        for (int x = 0; x < sourceImage.cols; ++x)
-        {
-            gray = false;
-            for (int i = 0; i < channels; ++i)
-            {
-                if(transformedRowPointer[x * channels + i] > maxVec[i] || transformedRowPointer[x * channels + i] < minVec[i])
-                {
-                    destinationRowPointer[x] = 0;
-                    gray = true;
-                } else
-                {
-                    if(!gray)
-                        destinationRowPointer[x] = 255;
-                }
-            }
-        }
-    }
-} //generaimagenFiltrada
-
-void generateYIQ (const Mat &origin, Mat &destination)   
-{
-    double blue, red, green;
-    float yq, iq, qq;
-
-    if (destination.empty())
-        destination= Mat(origin.rows, origin.cols, origin.type());
-
-    int channels = origin.channels();
-    
-    for (int y = 0; y < origin.rows; ++y) 
-    {
-        uchar* sourceRowPointer = (uchar*) origin.ptr<uchar>(y);
-        uchar* destinationRowPointer = (uchar*) destination.ptr<uchar>(y);
-        for (int x = 0; x < origin.cols; ++x)
-        {
-            blue= sourceRowPointer[x * channels]/255.0;
-            green = sourceRowPointer[x * channels + 1]/255.0;
-            red = sourceRowPointer[x * channels + 2]/255.0;
-            
-            yq = 0.299*red + 0.587*green + 0.114*blue;
-            iq = 0.596*red - 0.275*green - 0.321*blue;
-            qq = 0.212*red - 0.523*green + 0.311*blue;
-
-            /*
-                y is a value from 0 to 1
-                i is a value from -0.596 to 0.596, difference = 1.192
-                q is a value from -0.523 to 0.523, difference = 1.046
-
-                adjustment must be made
-            */
-
-            iq = (iq + 0.596) / 1.192;
-            qq = (qq + 0.523) / 1.046;
-
-            destinationRowPointer[x * channels    ] = yq * 255;
-            destinationRowPointer[x * channels + 1] = iq * 255;
-            destinationRowPointer[x * channels + 2] = qq * 255;
-        }
-    }
-} //generateYIQ
-
-void generateHSV (const Mat &origin,  Mat &destination)
-{
-    double blue, red, green;
-    double hv, sv, vv;
-    double min, max, delta;
-
-    if (destination.empty())
-        destination= Mat(origin.rows, origin.cols, origin.type());
-
-    int channels = origin.channels();
-
-    for (int y = 0; y < origin.rows; ++y) 
-    {
-        uchar* sourceRowPointer = (uchar*) origin.ptr<uchar>(y);
-        uchar* destinationRowPointer = (uchar*) destination.ptr<uchar>(y);
-
-        for (int x = 0; x < origin.cols; ++x)
-        {
-            blue = sourceRowPointer[x * channels]/255.0;
-            green = sourceRowPointer[x * channels + 1]/255.0;
-            red = sourceRowPointer[x * channels + 2]/255.0;
-
-            min = MIN(red,MIN(green,blue));
-            max = MAX(red,MAX(green,blue));
-            vv=max; //Es V
-            delta = max - min;
-            if( delta != 0 ) {
-                sv = delta / max;       // s
-            }
-            else {
-                // r = g = b = 0        // si s=0 entonces v es indefinido
-                sv = 0;
-                //hv = -1;
-                //return;
-            }
-
-            if(red == max) {
-                hv = ( green - blue ) / delta;     // between yellow & magenta
-            }
-            else if( green == max ) {
-                hv = 2 +( blue - red ) / delta; // between cyan & yellow
-            }
-            else {
-                hv = 4 +( red - green ) / delta; // between magenta & cyan
-            }
-
-            hv *= 60;               // degrees
-
-            if(hv < 0) {
-                hv += 360;
-            } else if (hv > 360) {
-                hv -= 360;
-            }
-
-            /*
-                hv is a value between 0 and 360
-                sv is a value between 0 and 1
-                vv is a value between 0 and 1
-            */
-            destinationRowPointer[x * channels] = hv * 255 / 360;
-            destinationRowPointer[x * channels + 1] = sv * 255;
-            destinationRowPointer[x * channels + 2] = vv * 255;
-        }
-    }
-} //generateHSV
-
-void showHistogram(Mat& img, const char* wname, const int sourceX, const int sourceY)
-{
-    int bins = 256;             // number of bins
-    int nc = img.channels();    // number of channels
-
-    vector<Mat> hist(nc);       // histogram arrays
-
-    // Initalize histogram arrays
-    for (unsigned int i = 0; i < hist.size(); i++)
-        hist[i] = Mat::zeros(1, bins, CV_32SC1);
-
-    // Calculate the histogram of the image
-    for (int i = 0; i < img.rows; i++)
-    {
-        for (int j = 0; j < img.cols; j++)
-        {
-            for (int k = 0; k < nc; k++)
-            {
-                uchar val = nc == 1 ? img.at<uchar>(i,j) : img.at<Vec3b>(i,j)[k];
-                hist[k].at<int>(val) += 1;
-            }
-        }
-    }
-
-    // For each histogram arrays, obtain the maximum (peak) value
-    // Needed to normalize the display later
-    int hmax[3] = {0,0,0};
-    int hgeneralmax = 0;
-    for (int i = 0; i < nc; i++)
-    {
-        for (int j = 0; j < bins-1; j++) {
-            hmax[i] = hist[i].at<int>(j) > hmax[i] ? hist[i].at<int>(j) : hmax[i];
-            hgeneralmax = hist[i].at<int>(j) > hgeneralmax ? hist[i].at<int>(j) : hgeneralmax;
-        }
-    }
-    /*    //adding the following FOR makes the height proportional to the absolute max of all channels 
-    for (int i = 0; i < nc; i++)
-    {   
-        hmax[i] = hgeneralmax;
-    }
-    */
-
-    //const char* wname[3] = { "Channel0", "Channel1", "Channel2" };
-    Scalar colors[3] = { Scalar(255,0,0), Scalar(0,255,0), Scalar(0,0,255) };
-
-    vector<Mat> canvas(nc);
-
-    // Display each histogram in a canvas
-    for (int i = 0; i < nc; i++)
-    {
-        canvas[i] = Mat::ones(125, bins, CV_8UC3);
-
-        for (int j = 0, rows = canvas[i].rows; j < bins-1; j++)
-        {
-            line(
-                canvas[i], 
-                Point(j, rows), 
-                Point(j, rows - (hist[i].at<int>(j) * rows/hmax[i])), 
-                nc == 1 ? Scalar(200,200,200) : colors[i], 
-                1, 8, 0
-            );
-        }
-
-        imshow(nc == 1 ? "value" : &wname[i*2], canvas[i]);
-        cvMoveWindow(nc == 1 ? "value" : &wname[i*2], sourceX+650,sourceY+i*155);
-    }
-} //showHistogram
-
-void showHistogram(Mat& img, const char* wname, const int sourceX, const int sourceY, const Vec3b components)
-{
-    int bins = 256;             // number of bins
-    int nc = img.channels();    // number of channels
-
-    vector<Mat> hist(nc);       // histogram arrays
-
-    // Initalize histogram arrays
-    for (unsigned int i = 0; i < hist.size(); i++)
-        hist[i] = Mat::zeros(1, bins, CV_32SC1);
-
-    // Calculate the histogram of the image
-    for (int i = 0; i < img.rows; i++)
-    {
-        for (int j = 0; j < img.cols; j++)
-        {
-            for (int k = 0; k < nc; k++)
-            {
-                uchar val = nc == 1 ? img.at<uchar>(i,j) : img.at<Vec3b>(i,j)[k];
-                hist[k].at<int>(val) += 1;
-            }
-        }
-    }
-
-    // For each histogram arrays, obtain the maximum (peak) value
-    // Needed to normalize the display later
-    int hmax[3] = {0,0,0};
-    int hgeneralmax = 0;
-    for (int i = 0; i < nc; i++)
-    {
-        for (int j = 0; j < bins-1; j++) {
-            hmax[i] = hist[i].at<int>(j) > hmax[i] ? hist[i].at<int>(j) : hmax[i];
-            hgeneralmax = hist[i].at<int>(j) > hgeneralmax ? hist[i].at<int>(j) : hgeneralmax;
-        }
-    }
-
-    //const char* wname[3] = { "Channel0", "Channel1", "Channel2" };
-    Scalar colors[3] = { Scalar(255,0,0), Scalar(0,255,0), Scalar(0,0,255) };
-
-    vector<Mat> canvas(nc);
-
-    // Display each histogram in a canvas
-    for (int i = 0; i < nc; i++)
-    {
-        canvas[i] = Mat::ones(125, bins, CV_8UC3);
-
-        for (int j = 0, rows = canvas[i].rows; j < bins-1; j++)
-        {
-            line(
-                canvas[i], 
-                Point(j, rows), 
-                Point(j, rows - (hist[i].at<int>(j) * rows/hmax[i])), j == components[i] ? Scalar(255,255,255) : colors[i], 
-                1, 8, 0
-            );
-        }
-
-        imshow(nc == 1 ? "value" : &wname[i*2], canvas[i]);
-        cvMoveWindow(nc == 1 ? "value" : &wname[i*2], sourceX+650,sourceY+i*155);
-    }
-} //showHistogram
-
+    cout<<"Region \tTamaño "<<endl;
+    for (int i=0;i<x;i++)
+    cout<<i+1<<"\t"<<areas[i]<<endl;
+}
